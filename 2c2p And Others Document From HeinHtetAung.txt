@@ -1,0 +1,309 @@
+﻿-------------- 2c2p Integration ----------------
+2c2p is a payment gateway to accept money from customer to website owner. It is just a service that can enable customer to buy online. 
+
+For the website owner, to make 2c2p integration, the website owner must have bank account and 2c2p merchant account. 2c2p merchant account can open via 2c2p office in Myanmar. After merchant account opened, the account connect with customer bank account. So the payment from website is directly goes to website owner bank account. But 2c2p cut service fees as 5% in one transition. May change according to policy.
+
+For the customer, the customer which have master card or visa card can buy on website that integrated with 2c2p. IF they checkout, the system simply redirect to 2c2p, they just write their master visa information on 2c2p page, accept their payment, redirect to website again true or false. IF true the payment goes into website owner merchant bank account.
+
+For the programmer to make 2c2p payment gateway, He/she must ask 2c2p merchant information from website owner. 
+The information are mostly
+1.	Merchant_id
+2.	Secret_key
+3.	2c2p Official Documentation PDF
+
+
+
+---------------- Start 2c2p integrate on web app -------------------------
+There are many ways to integrate 2c2p on web app.
+But I use the following way.
+1. First need to set empty form in view page. The form will post to 2c2p payment page.
+
+<form method="post"  id="sampleform"></form>
+
+
+2. Second need to add customer contact information form. Indend to follow customer, if payment success or failure.
+
+<form>
+    <label>First Name:</label>
+    <input type="text" class="cusvalidate" id="firstname" data-val-required="You can't leave this empty" data-err-class="firstnameerr">
+    <span class="firstnameerr err"></span>
+    <label>last Name:</label>
+    <input type="text" class="cusvalidate" id="lastname" data-val-required="You can't leave this empty" data-err-class="lastnameerr">
+    <span class="lastnameerr err"></span>
+    <label>Phone:</label>
+    <input type="text" id="phone" class="cusvalidate" data-val-required="You can't leave this empty" data-err-class="phoneerr" data-num="true">
+    <span class="phoneerr err"></span>
+    <label>Email Address:</label>
+    <input type="text" class="cusvalidate" id="emailaddress" data-val-required="You can't leave this empty" data-err-class="emailerr" data-val-email="Email is not valid">
+    <span class="emailerr err"></span>
+    <label>Choose Nationality:</label>
+    <select id="nationality" class="cusvalidate" data-val-required="You can't leave this empty" data-err-class="nationalerr">
+        <option selected="selected" value="">Select Country</option>
+        .... all country
+    </select>
+    <span class="nationalerr err"></span>
+    
+    <div class="clearfix"></div>
+    <label>your request?</label>
+    <textarea id="yourrequest"></textarea>
+    <button href="#" class="reserve_Btn">Book & Pay Now</button>
+</form>
+
+
+
+3. After click pay button, ajax goes to server to setup 2c2p form information. (This is because the information don’t want to show in view page for security)
+    The steps are 
+    - call ajax to server intend to prepare 2c2p info
+    - In server, prepare 2c2p info and return 2c2p info json to view
+    - after get this json, loop and create input in empty form
+    - after all finish, submit to 2c2p page.
+    - User fills master/visa info and enjoy. 
+    - Happy coding
+
+<script>
+$('.reserve_Btn').click(function (e) {
+    e.preventDefault();
+    var res = checkall();
+    if (res == true) {
+        e.preventDefault();
+        return false;
+    }
+    $('.reserve_Btn').attr('disabled', true);
+    $('.reserve_Btn').html('Loading...');
+    //return false;
+    var firstnameval = $('#firstname').val();
+    var phoneval = $('#phone').val();
+    var lastnameval = $('#lastname').val();
+    var emailaddressval = $('#emailaddress').val();
+    var nationalityval = $('#nationality').val();
+    var paymentmethodval = $('#paymentmethod').val();
+    var cardholderval = $('#cardholder').val();
+    var cardnumberval = $('#cardnumber').val();
+    var cardexpiremonthval = $('#cardexpiremonth').val();
+    var cardexpireyearval = $('#cardexpireyear').val();
+    var cvccodeval = $('#cvccode').val();
+    var yourrequestval = $('#yourrequest').val();
+    
+    $.ajax({
+        url: '/umbraco/surface/FlightSurface/bookingform/',
+        async: false,
+        type: 'post',
+        data: {
+            firstname: firstnameval,
+            lastname: lastnameval,
+            phone: phoneval,
+            emailaddress: emailaddressval,
+            nationality: nationalityval,
+            paymentmethod: paymentmethodval,
+            cardholder: cardholderval,
+            cardnumber: cardnumberval,
+            cardexpiremonth: cardexpiremonthval,
+            cardexpireyear: cardexpireyearval,
+            cvccode: cvccodeval,
+            yourrequest: yourrequestval
+        },
+        success: function (return_data) {  // <---- return from server return_data contain 2c2p info
+            if (return_data) {
+                
+                document.getElementById('sampleform').action = return_data.formaction; //Will set it
+                
+                var inputs="";
+                for (var key in return_data) {   // set all 2c2p info to input type
+                    if (key != "formaction") {
+                        inputs = inputs + '<input type="hidden" name="' + key + '" value="' + return_data[key] + '">';
+                    }
+                }
+                document.getElementById('sampleform').innerHTML = inputs;  // set all 2c2p input value to form
+
+                document.forms["sampleform"].submit();  // submit form to 2c2p Payment Page
+
+            }
+        }
+    });
+});
+</script>
+
+
+
+In server, (For umbraco Surface Controller) There must be method to prepare 2c2p info. Like this
+[HttpPost]
+public ActionResult bookingform()
+{
+    String firstname = Request.Form["firstname"];
+    String lastname = Request.Form["lastname"];
+    String phone = Request.Form["phone"];
+    String emailaddress = Request.Form["emailaddress"];
+    String nationality = Request.Form["nationality"];
+    String paymentmethod = Request.Form["paymentmethod"];
+    String cardholder = Request.Form["cardholder"];
+    String cardnumber = Request.Form["cardnumber"];
+    String cardexpiremonth = Request.Form["cardexpiremonth"];
+    String cardexpireyear = Request.Form["cardexpireyear"];
+    String cvccode = Request.Form["cvccode"];
+    String yourrequest = Request.Form["yourrequest"];
+
+    DateTime now = DateTime.Now;
+    string oid = "000000" + now.ToString("ddMMyyyyhhmmss");  // order id is datetime to unique
+
+    // Email send to user
+    String mail = "";
+    String mail1 = "<p><h2>Receiving mail From Client " + firstname + "</h2>";
+    String mail2 = "<p><h2>We received your order list. Please make sure to complete the payment process.</h2>";
+    mail = mail + "<h3>Order ID : " + oid + "</h3>";
+    mail = mail + "<h3>First Name : " + firstname + "</h3>";
+    mail = mail + "<h3>Last Name : " + lastname + "</h3>";
+    mail = mail + "<h3>Phone : " + phone + "</h3>";
+    mail = mail + "<h3>Email : " + emailaddress + "</h3>";
+    mail = mail + "<h3>Nationality : " + nationality + "</h3>";
+    mail = mail + "<h3>Your Request : " + yourrequest + "</h3>";
+    mail = mail + "<h2>Thank you</h2>";
+
+    mail = mail + "<br><table width='80%' border=1 border-collapse='collapse'><thead><tr><th colspan='4'>Order Summary</th></tr><tr><th>DESCRIPTION</th><th>Qty</th><th>PRICE</th><th >TOTAL</th></tr></thead><tbody>";
+    
+    // Calculate total from session cart datas
+    List<Tour> tours = Session["cart"] != null ? (List<Tour>)Session["cart"] : null;
+    int finalprice = 0;
+    int totalprice = 0;
+    int index = 0;
+    foreach (var t in tours)
+    {
+        totalprice = t.TourPrice * t.qty;
+        finalprice = finalprice + totalprice;
+        mail = mail + "<tr><td>" + t.TourTitle + "</td><td>" + t.qty + "</td><td>" + t.TourPrice + "</td><td>" + totalprice + "</td></tr>";
+    }
+	
+	// new add for onlinebookfee({
+	int onlinebookfee = finalprice*5/100;
+	finalprice = finalprice+onlinebookfee;
+	// });
+
+    mail = mail + "</tbody>";
+    mail = mail + "<tfoot><tr><th colspan='3'>Online Booking Fees 5%</th><td>" + onlinebookfee + "</td></tr><tr><th colspan='3'>Total</th><td>" + finalprice + "</td></tr></tfoot></table>";
+
+    mu.SendEmail("info@www.com", WebConfigurationManager.AppSettings["adminemail"].ToString(), "Order From Customer, Order ID : " + oid, mail1 + mail);
+    mu.SendEmail("info@www.com", emailaddress, "Order Receive Mail From , Order ID : " + oid, mail2 + mail);
+
+
+    // calculate amount that acceptable format accoding to 2c2p document    
+    string amt = finalprice.ToString()+"00";
+    while (amt.Length < 12)
+    {
+        amt = "0" + amt;
+    }
+
+
+    // prepare 2c2p information
+    String version = "6.4";  // 2c2p version
+    String merchant_id = WebConfigurationManager.AppSettings["merchant_id"].ToString();  // merchant id from owner
+    String payment_description = "Payment From " + firstname + " " + lastname; // just description
+    String order_id = oid;  // order id can set anything. but need to unique
+    String invoice_no = oid; // order id can set anything. but need to unique
+    String currency = "840";  // this is USD. there are many codes for other currency. check online
+    String amount = amt; // amount according to 2c2p format. 12 character
+    String customer_email = emailaddress; 
+    String pay_category_id = "";
+    String promotion = "";
+    String user_defined_1 = emailaddress;
+    String user_defined_2 = finalprice.ToString();
+    String user_defined_3 = "";
+    String user_defined_4 = "";
+    String user_defined_5 = "";
+    String result_url_1 = WebConfigurationManager.AppSettings["RedirectFrom2c2p"].ToString();  // success redirect url this is no need if register in 2c2p
+    String result_url_2 = "";
+    String secret_key = WebConfigurationManager.AppSettings["secret_key"].ToString(); // secret key from owner
+
+    // call 2c2p hash algorithm for security
+    string strSignatureString = version + merchant_id + payment_description + order_id + invoice_no + currency + amount + customer_email + pay_category_id + promotion + user_defined_1 + user_defined_2 + user_defined_3 + user_defined_4 + user_defined_5 + result_url_1 + result_url_2;
+    string HashValue = getHMAC(strSignatureString, secret_key);
+
+    String hash_value = HashValue;
+
+    // prepare data to send view again
+    var values = new Dictionary<string, string>
+    {
+        { "formaction", WebConfigurationManager.AppSettings["2c2pLink"].ToString() },
+        { "version", version },
+        { "merchant_id", merchant_id },
+        { "payment_description", payment_description },
+        { "order_id", order_id },
+        { "invoice_no", invoice_no },
+        { "currency", currency },
+        { "amount", amount },
+        { "customer_email", customer_email },
+        { "pay_category_id", pay_category_id },
+        { "promotion", promotion },
+        { "user_defined_1", user_defined_1 },
+        { "user_defined_2", user_defined_2 },
+        { "user_defined_3", user_defined_3 },
+        { "user_defined_4", user_defined_4 },
+        { "user_defined_5", user_defined_5 },
+        { "result_url_1", result_url_1 },
+        { "result_url_2", result_url_2 },
+        { "hash_value", hash_value }
+    };
+
+    return Json(values); // return to view ---->
+}
+
+private string getHMAC(string signatureString, string secretKey)
+{
+    System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
+    byte[] keyByte = encoding.GetBytes(secretKey);
+    HMACSHA1 hmac = new HMACSHA1(keyByte);
+    byte[] messageBytes = encoding.GetBytes(signatureString);
+    byte[] hashmessage = hmac.ComputeHash(messageBytes);
+    return ByteArrayToHexString(hashmessage);
+}
+private string ByteArrayToHexString(byte[] Bytes)
+{
+    StringBuilder Result = new StringBuilder();
+    string HexAlphabet = "0123456789ABCDEF";
+    foreach (byte B in Bytes)
+    {
+        Result.Append(HexAlphabet[(int)(B >> 4)]);
+        Result.Append(HexAlphabet[(int)(B & 0xF)]);
+    }
+    return Result.ToString();
+}
+
+
+
+4. By the above way, the form submit to 2c2p and The user need to  fill master/visa
+
+    If Payment Success redirect to 'result_url_1' that register in 2c2p
+
+    If Payment Fail redirect to failure page that register in 2c2p
+
+
+As Conclusion, 2c2p integration is just calling api from 2c2p. and other payment gateway are working like this.
+We just neeed to know the steps and need to secure. The main thing is the 2c2p info should not include in view.	
+	
+That's all. How easy 2c2p. There may be other ways according to your brain storng.
+Happy Coding!!!!!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

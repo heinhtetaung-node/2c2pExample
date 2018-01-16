@@ -1,0 +1,91 @@
+<form method="post"  id="sampleform"></form>
+<form>
+    <label>First Name:</label>
+    <input type="text" class="cusvalidate" id="firstname" data-val-required="You can't leave this empty" data-err-class="firstnameerr">
+    <span class="firstnameerr err"></span>
+    <label>last Name:</label>
+    <input type="text" class="cusvalidate" id="lastname" data-val-required="You can't leave this empty" data-err-class="lastnameerr">
+    <span class="lastnameerr err"></span>
+    <label>Phone:</label>
+    <input type="text" id="phone" class="cusvalidate" data-val-required="You can't leave this empty" data-err-class="phoneerr" data-num="true">
+    <span class="phoneerr err"></span>
+    <label>Email Address:</label>
+    <input type="text" class="cusvalidate" id="emailaddress" data-val-required="You can't leave this empty" data-err-class="emailerr" data-val-email="Email is not valid">
+    <span class="emailerr err"></span>
+    <label>Choose Nationality:</label>
+    <select id="nationality" class="cusvalidate" data-val-required="You can't leave this empty" data-err-class="nationalerr">
+        <option selected="selected" value="">Select Country</option>
+        .... all country
+    </select>
+    <span class="nationalerr err"></span>
+    
+    <div class="clearfix"></div>
+    <label>your request?</label>
+    <textarea id="yourrequest"></textarea>
+    <button href="#" class="reserve_Btn">Book & Pay Now</button>
+</form>
+
+
+
+<script>
+$('.reserve_Btn').click(function (e) {
+    e.preventDefault();
+    var res = checkall();
+    if (res == true) {
+        e.preventDefault();
+        return false;
+    }
+    $('.reserve_Btn').attr('disabled', true);
+    $('.reserve_Btn').html('Loading...');
+    //return false;
+    var firstnameval = $('#firstname').val();
+    var phoneval = $('#phone').val();
+    var lastnameval = $('#lastname').val();
+    var emailaddressval = $('#emailaddress').val();
+    var nationalityval = $('#nationality').val();
+    var paymentmethodval = $('#paymentmethod').val();
+    var cardholderval = $('#cardholder').val();
+    var cardnumberval = $('#cardnumber').val();
+    var cardexpiremonthval = $('#cardexpiremonth').val();
+    var cardexpireyearval = $('#cardexpireyear').val();
+    var cvccodeval = $('#cvccode').val();
+    var yourrequestval = $('#yourrequest').val();
+    
+    $.ajax({
+        url: '/umbraco/surface/FlightSurface/bookingform/',
+        async: false,
+        type: 'post',
+        data: {
+            firstname: firstnameval,
+            lastname: lastnameval,
+            phone: phoneval,
+            emailaddress: emailaddressval,
+            nationality: nationalityval,
+            paymentmethod: paymentmethodval,
+            cardholder: cardholderval,
+            cardnumber: cardnumberval,
+            cardexpiremonth: cardexpiremonthval,
+            cardexpireyear: cardexpireyearval,
+            cvccode: cvccodeval,
+            yourrequest: yourrequestval
+        },
+        success: function (return_data) {  // <---- return from server return_data contain 2c2p info
+            if (return_data) {
+                
+                document.getElementById('sampleform').action = return_data.formaction; //Will set it
+                
+                var inputs="";
+                for (var key in return_data) {   // set all 2c2p info to input type
+                    if (key != "formaction") {
+                        inputs = inputs + '<input type="hidden" name="' + key + '" value="' + return_data[key] + '">';
+                    }
+                }
+                document.getElementById('sampleform').innerHTML = inputs;  // set all 2c2p input value to form
+
+                document.forms["sampleform"].submit();  // submit form to 2c2p Payment Page
+
+            }
+        }
+    });
+});
+</script>
